@@ -9,25 +9,15 @@ use Webmozart\Assert\Assert;
 
 class BankAccountManagerStub implements BankAccountManagerInterface
 {
-    private array $accs = [];
-
-    /**
-     * @param BankAccountRecStub[] $accs
-     */
-    public function __construct(array $accs)
-    {
-        Assert::allIsAOf($accs, BankAccountRecStub::class);
-        $this->accs = $accs;
-    }
-
+    const ACC_ID = "d50e2997-a9be-4d9b-9894-e97ce1b3e24e";
 
     public function getAccount(string $id): BankAccountRecInterface
     {
-        $match = array_values(array_filter(
-            $this->accs,
-            fn(BankAccountRecInterface $acc) => ($acc->getId() === $id)
-        ));
-        Assert::notEmpty($match);
-        return $match[0];
+        Assert::eq($id, self::ACC_ID);
+        return new BankAccountRecStub(
+            self::ACC_ID,
+            CurrencyManagerStub::getAllCurrencies(),
+            CurrencyManagerStub::RUB
+        );
     }
 }

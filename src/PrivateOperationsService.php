@@ -59,10 +59,12 @@ final class PrivateOperationsService
         return array_reduce(
             $allCurrenciesAmount,
             fn(AmountInCurrencyValInterface $acc, AmountInCurrencyValInterface $el)
-                => $acc->plus($this->currencyManager->convertAmountTo(
-                    $el,
-                    $account->getMainCurId()
-                )),
+                => ($account->getMainCurId() === $el->getCurId())
+                    ? $acc->plus($el)
+                    : $acc->plus($this->currencyManager->convertAmountTo(
+                        $el,
+                        $account->getMainCurId()
+                    )),
             $this->currencyManager->getZeroForCurrency($account->getMainCurId())
         );
     }
@@ -116,21 +118,11 @@ final class PrivateOperationsService
         );
         if($currencyDirtyBalance->minus($amount)->isPositive()) {
             sleep(1);
-            $currencyDirtyBalance2 = $this->calcAmountInCurrency(
-                $accountId,
-                $amount->getCurId(),
-                false
-            );
-            if($currencyDirtyBalance2->minus($amount)->isPositive()) {
-                $this->currencyOperationManager
-                    ->confirmOperations([$cashOperation]);
-            } else {
-                $this->currencyOperationManager
-                    ->declineOperations([$cashOperation]);
-            }
+            $this->currencyOperationManager
+                ->confirmOperations([$cashOperation->getId()]);
         } else {
             $this->currencyOperationManager
-                ->declineOperations([$cashOperation]);
+                ->declineOperations([$cashOperation->getId()]);
         }
     }
 

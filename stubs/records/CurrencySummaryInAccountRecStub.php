@@ -5,6 +5,7 @@ namespace Pantagruel74\MulticurtestPrivateOperationsServiceStubs\records;
 use Pantagruel74\MulticurtestPrivateOperationsService\records\CurrencySummaryInAccountRecInterface;
 use Pantagruel74\MulticurtestPrivateOperationsService\values\AmountInCurrencyValInterface;
 use Pantagruel74\MulticurtestPrivateOperationsServiceStubs\values\AmountInCurrencyValStub;
+use Webmozart\Assert\Assert;
 
 class CurrencySummaryInAccountRecStub implements
     CurrencySummaryInAccountRecInterface
@@ -26,6 +27,7 @@ class CurrencySummaryInAccountRecStub implements
         AmountInCurrencyValStub $amount,
         int $timestamp
     ) {
+        Assert::eq($curId, $amount->getCurId());
         $this->id = $id;
         $this->curId = $curId;
         $this->amount = $amount;

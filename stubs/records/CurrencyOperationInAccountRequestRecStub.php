@@ -30,6 +30,7 @@ class CurrencyOperationInAccountRequestRecStub implements
         bool $isDeclined,
         int $timestamp
     ) {
+        Assert::false($isConfirmed && $isDeclined);
         $this->id = $id;
         $this->amount = $amount;
         $this->isConfirmed = $isConfirmed;

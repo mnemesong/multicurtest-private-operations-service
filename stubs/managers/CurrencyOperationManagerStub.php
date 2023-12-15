@@ -38,7 +38,7 @@ class CurrencyOperationManagerStub implements CurrencyOperationManagerInterface
         );
         if(!is_null($afterTimestamp)) {
             $matchOperations = array_filter(
-                $this->operations,
+                $matchOperations,
                 fn(CurrencyOperationInAccountRequestRecStub $op)
                 => ($op->getTimestamp() >= $afterTimestamp)
             );
@@ -99,7 +99,9 @@ class CurrencyOperationManagerStub implements CurrencyOperationManagerInterface
     {
         $this->operations = array_map(
             fn(CurrencyOperationInAccountRequestRecStub $op)
-                => $op->asConfirmed(),
+                => (in_array($op->getId(), $operationIds))
+                    ? $op->asConfirmed()
+                    : $op,
             $this->operations
         );
     }
@@ -108,7 +110,9 @@ class CurrencyOperationManagerStub implements CurrencyOperationManagerInterface
     {
         $this->operations = array_map(
             fn(CurrencyOperationInAccountRequestRecStub $op)
-                => $op->asDeclined(),
+                => (in_array($op->getId(), $operationIds))
+                    ? $op->asDeclined()
+                    : $op,
             $this->operations
         );
     }
