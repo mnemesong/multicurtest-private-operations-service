@@ -3,7 +3,6 @@
 namespace Pantagruel74\MulticurtestPrivateOperationsService;
 
 use Pantagruel74\MulticurtestPrivateOperationsService\managers\BankAccountManagerInterface;
-use Pantagruel74\MulticurtestPrivateOperationsService\managers\CurrencyConversionManagerInterface;
 use Pantagruel74\MulticurtestPrivateOperationsService\managers\CurrencyManagerInterface;
 use Pantagruel74\MulticurtestPrivateOperationsService\managers\CurrencyOperationManagerInterface;
 use Pantagruel74\MulticurtestPrivateOperationsService\managers\CurrencySummaryManagerInterface;
@@ -14,27 +13,23 @@ use Webmozart\Assert\Assert;
 final class PrivateOperationsService
 {
     private BankAccountManagerInterface $bankAccountManager;
-    private CurrencyConversionManagerInterface $currencyConversionManager;
     private CurrencySummaryManagerInterface $currencySummaryManager;
     private CurrencyManagerInterface $currencyManager;
     private CurrencyOperationManagerInterface $currencyOperationManager;
 
     /**
      * @param BankAccountManagerInterface $bankAccountManager
-     * @param CurrencyConversionManagerInterface $currencyConversionRatioManager
      * @param CurrencySummaryManagerInterface $currencySummaryManager
      * @param CurrencyManagerInterface $currencyManager
      * @param CurrencyOperationManagerInterface $currencyOperationManager
      */
     public function __construct(
         BankAccountManagerInterface        $bankAccountManager,
-        CurrencyConversionManagerInterface $currencyConversionRatioManager,
         CurrencySummaryManagerInterface    $currencySummaryManager,
         CurrencyManagerInterface           $currencyManager,
         CurrencyOperationManagerInterface  $currencyOperationManager
     ) {
         $this->bankAccountManager = $bankAccountManager;
-        $this->currencyConversionManager = $currencyConversionRatioManager;
         $this->currencySummaryManager = $currencySummaryManager;
         $this->currencyManager = $currencyManager;
         $this->currencyOperationManager = $currencyOperationManager;
@@ -64,7 +59,7 @@ final class PrivateOperationsService
         return array_reduce(
             $allCurrenciesAmount,
             fn(AmountInCurrencyValInterface $acc, AmountInCurrencyValInterface $el)
-                => $acc->plus($this->currencyConversionManager->convertAmountTo(
+                => $acc->plus($this->currencyManager->convertAmountTo(
                     $el,
                     $account->getMainCurId()
                 )),
@@ -84,7 +79,7 @@ final class PrivateOperationsService
                 . " in account " . $accountId
         );
         Assert::true(
-            $amount->getAmountInDecimals() > 0,
+            $amount->isPositive(),
             "Sum of replanishment can't be negative"
         );
         $replanishment = $this->currencyOperationManager
@@ -107,7 +102,7 @@ final class PrivateOperationsService
             . " in account " . $accountId
         );
         Assert::true(
-            $amount->getAmountInDecimals() > 0,
+            $amount->isPositive(),
             "Sum of cash can't be negative"
         );
         $cashOperation = $this->currencyOperationManager
@@ -119,14 +114,14 @@ final class PrivateOperationsService
             $amount->getCurId(),
             false
         );
-        if($currencyDirtyBalance->minus($amount)->getAmountInDecimals() > 0) {
+        if($currencyDirtyBalance->minus($amount)->isPositive()) {
             sleep(1);
             $currencyDirtyBalance2 = $this->calcAmountInCurrency(
                 $accountId,
                 $amount->getCurId(),
                 false
             );
-            if($currencyDirtyBalance2->minus($amount)->getAmountInDecimals() > 0) {
+            if($currencyDirtyBalance2->minus($amount)->isPositive()) {
                 $this->currencyOperationManager
                     ->confirmOperations([$cashOperation]);
             } else {

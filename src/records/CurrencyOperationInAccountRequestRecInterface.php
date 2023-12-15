@@ -10,5 +10,4 @@ interface CurrencyOperationInAccountRequestRecInterface
     public function getAmount(): AmountInCurrencyValInterface;
     public function isConfirmed(): bool;
     public function isDeclined(): bool;
-    public function timestamp(): int;
 }

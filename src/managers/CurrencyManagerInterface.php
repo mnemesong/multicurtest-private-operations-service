@@ -9,4 +9,9 @@ interface CurrencyManagerInterface
     public function getZeroForCurrency(
         string $curId
     ): AmountInCurrencyValInterface;
+
+    public function convertAmountTo(
+        AmountInCurrencyValInterface $amount,
+        string $targetCurrency
+    ): AmountInCurrencyValInterface;
 }
