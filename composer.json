@@ -1,0 +1,30 @@
+{
+    "name": "pantagruel74/multicurtest-private-operations-service",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Pantagruel74\\MulticurtestPrivateOperationsService\\": "src/",
+            "Pantagruel74\\MulticurtestPrivateOperationsServiceStubs\\": "stubs/",
+            "Pantagruel74\\MulticurtestPrivateOperationsServiceTest\\": "test-unit/"
+        }
+    },
+    "scripts": {
+        "test:unit": "phpunit ./test-unit"
+    },
+    "authors": [
+        {
+            "name": "Pantagruel74",
+            "email": "tostar74@mail.ru"
+        }
+    ],
+    "minimum-stability": "stable",
+    "require": {
+        "php": ">=7.4",
+        "webmozart/assert": "^1.11"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "*",
+        "ramsey/uuid": "^4.2"
+    }
+}
