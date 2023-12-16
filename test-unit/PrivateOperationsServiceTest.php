@@ -209,7 +209,7 @@ class PrivateOperationsServiceTest extends TestCase
             $curManager,
             $operationManager
         );
-        $result1 = $service->getFrozenAccountBalance(
+        $result1 = $service->getFrozenBalanceInCurrencyAccount(
             BankAccountManagerStub::ACC_ID,
             "EUR"
         );
@@ -239,7 +239,7 @@ class PrivateOperationsServiceTest extends TestCase
             $operationManager
         );
         $this->expectException(\InvalidArgumentException::class);
-        $result1 = $service->getFrozenAccountBalance(
+        $result1 = $service->getFrozenBalanceInCurrencyAccount(
             BankAccountManagerStub::ACC_ID,
             "RUB"
         );

@@ -49,7 +49,7 @@ final class PrivateOperationsService
         return $this->calcConfirmedAmountInCurrency($accountId, $currency);
     }
 
-    public function getFrozenAccountBalance(
+    public function getFrozenBalanceInCurrencyAccount(
         string $accountId,
         string $currency
     ): AmountInCurrencyValInterface {
