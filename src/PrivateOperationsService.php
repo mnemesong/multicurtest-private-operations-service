@@ -2,11 +2,13 @@
 
 namespace Pantagruel74\MulticurtestPrivateOperationsService;
 
+use Pantagruel74\MulticurtestPrivateOperationsService\exceptions\NotEnouthMoneyException;
 use Pantagruel74\MulticurtestPrivateOperationsService\managers\BankAccountManagerInterface;
 use Pantagruel74\MulticurtestPrivateOperationsService\managers\CurrencyManagerInterface;
 use Pantagruel74\MulticurtestPrivateOperationsService\managers\CurrencyOperationManagerInterface;
 use Pantagruel74\MulticurtestPrivateOperationsService\managers\CurrencySummaryManagerInterface;
 use Pantagruel74\MulticurtestPrivateOperationsService\records\CurrencyOperationInAccountRequestRecInterface;
+use Pantagruel74\MulticurtestPrivateOperationsService\records\CurrencySummaryInAccountRecInterface;
 use Pantagruel74\MulticurtestPrivateOperationsService\values\AmountInCurrencyValInterface;
 use Webmozart\Assert\Assert;
 
@@ -44,7 +46,7 @@ final class PrivateOperationsService
         $currencyExists = in_array($currency, $account->getCurrencies());
         Assert::true($currencyExists, "Currency " . $currency
             . " are not exists in account " . $accountId);
-        return $this->calcAmountInCurrency($accountId, $currency);
+        return $this->calcConfirmedAmountInCurrency($accountId, $currency);
     }
 
     public function getConfirmedTotalBalanceInAccount(
@@ -53,7 +55,8 @@ final class PrivateOperationsService
         $account = $this->bankAccountManager->getAccount($accountId);
         $allCurrenciesInAcc = $account->getCurrencies();
         $allCurrenciesAmount = array_map(
-            fn(string $cur) => $this->calcAmountInCurrency($accountId, $cur),
+            fn(string $cur) => $this
+                ->calcConfirmedAmountInCurrency($accountId, $cur),
             $allCurrenciesInAcc
         );
         return array_reduce(
@@ -111,25 +114,118 @@ final class PrivateOperationsService
             ->createCashOperationInProcessing($accountId, $amount);
         $this->currencyOperationManager
             ->saveNewOperations([$cashOperation]);
-        $currencyDirtyBalance = $this->calcAmountInCurrency(
-            $accountId,
-            $amount->getCurId(),
-            false
-        );
-        if($currencyDirtyBalance->minus($amount)->isPositive()) {
+        try {
+            $this->assertPessimisticBalanceIsPositive(
+                $accountId,
+                $amount->getCurId()
+            );
             sleep(1);
+            $this->assertPessimisticBalanceIsPositive(
+                $accountId,
+                $amount->getCurId()
+            );
             $this->currencyOperationManager
                 ->confirmOperations([$cashOperation->getId()]);
-        } else {
+        } catch (NotEnouthMoneyException $e) {
             $this->currencyOperationManager
                 ->declineOperations([$cashOperation->getId()]);
+            throw $e;
         }
     }
 
-    private function calcAmountInCurrency(
+    public function convertAmountToOtherCurrency(
         string $accountId,
-        string $currency,
-        bool $onlyConfirmed = true
+        AmountInCurrencyValInterface $amount,
+        string $targetCurrency
+    ): void {
+        $account = $this->bankAccountManager->getAccount($accountId);
+        Assert::inArray(
+            $amount->getCurId(),
+            $account->getCurrencies(),
+            "Currency " . $amount->getCurId() . " are not created"
+            . " in account " . $accountId
+        );
+        Assert::true(
+            $amount->isPositive(),
+            "Sum to convert can't be negative"
+        );
+        $writeOffOperation = $this->currencyOperationManager
+            ->createWriteOffCaseConversion($accountId, $amount);
+        $this->currencyOperationManager
+            ->saveNewOperations([$writeOffOperation]);
+        try {
+            $this->assertPessimisticBalanceIsPositive(
+                $accountId,
+                $amount->getCurId()
+            );
+            sleep(1);
+            $this->assertPessimisticBalanceIsPositive(
+                $accountId,
+                $amount->getCurId()
+            );
+            $targetAmount = $this->currencyManager
+                ->convertAmountTo($amount, $targetCurrency);
+            $writeInOperation = $this->currencyOperationManager
+                ->createWriteInCaseConversion($accountId, $targetAmount);
+            $this->currencyOperationManager
+                ->confirmOperations([
+                    $writeOffOperation->getId(),
+                    $writeInOperation->getId()
+                ]);
+        } catch (NotEnouthMoneyException $e) {
+            $this->currencyOperationManager
+                ->declineOperations([$writeOffOperation->getId()]);
+            throw $e;
+        }
+    }
+
+    private function assertPessimisticBalanceIsPositive(
+        string $accountId,
+        string $curId
+    ): void {
+        $pessimisticAmount = $this->calcPessimisticAmountInCurrency(
+            $accountId,
+            $curId
+        );
+        if (!$pessimisticAmount->isPositive() && !$pessimisticAmount->isZero()) {
+            throw new NotEnouthMoneyException();
+        };
+    }
+
+    private function getAllUndeclinedOperationsAfter(
+        string $accountId,
+        string $curId,
+        ?int $timestamp
+    ): array {
+        $operationsAfterSummary = $this->currencyOperationManager
+            ->getAllOperationsAfter($accountId, $curId, $timestamp);
+        return array_filter(
+            $operationsAfterSummary,
+            fn(CurrencyOperationInAccountRequestRecInterface $op)
+                => ($op->isDeclined() === false)
+        );
+    }
+
+    /* @param CurrencyOperationInAccountRequestRecInterface[] $operations */
+    private function calcOperationsSum(
+        array $operations,
+        string $curId
+    ): AmountInCurrencyValInterface {
+        Assert::allSubclassOf($operations,
+            CurrencyOperationInAccountRequestRecInterface::class);
+        return array_reduce(
+            $operations,
+            fn(
+                AmountInCurrencyValInterface $acc,
+                CurrencyOperationInAccountRequestRecInterface $el
+            ) => $acc->plus($el->getAmount()),
+            $this->currencyManager->getZeroForCurrency($curId)
+        );
+    }
+
+    private function calcConfirmedAmountInCurrency(
+        string $accountId,
+        string $currency
     ): AmountInCurrencyValInterface {
         $lastSummary = $this->currencySummaryManager
             ->getLastSummaryForAccount($accountId, $currency);
@@ -139,27 +235,46 @@ final class PrivateOperationsService
         $lastSummaryTimestamp = is_null($lastSummary)
             ? null
             : $lastSummary->getTimestamp();
-        $operationsAfterSummary = $this->currencyOperationManager
-            ->getAllOperationsAfter($accountId, $currency, $lastSummaryTimestamp);
+        $operationsAfterSummary = $this->getAllUndeclinedOperationsAfter(
+            $accountId,
+            $currency,
+            $lastSummaryTimestamp
+        );
         $operationsAfterSummary = array_filter(
             $operationsAfterSummary,
             fn(CurrencyOperationInAccountRequestRecInterface $op)
-                => ($op->isDeclined() === false)
+                => ($op->isConfirmed() === true)
         );
-        if($onlyConfirmed === true) {
-            $operationsAfterSummary = array_filter(
-                $operationsAfterSummary,
-                fn(CurrencyOperationInAccountRequestRecInterface $op)
-                    => ($op->isConfirmed() === true)
-            );
-        }
-        return array_reduce(
+        return $lastSummaryAmount->plus(
+            $this->calcOperationsSum($operationsAfterSummary, $currency)
+        );
+    }
+
+    private function calcPessimisticAmountInCurrency(
+        string $accountId,
+        string $currency
+    ): AmountInCurrencyValInterface {
+        $lastSummary = $this->currencySummaryManager
+            ->getLastSummaryForAccount($accountId, $currency);
+        $lastSummaryAmount = is_null($lastSummary)
+            ? $this->currencyManager->getZeroForCurrency($currency)
+            : $lastSummary->getAmount();
+        $lastSummaryTimestamp = is_null($lastSummary)
+            ? null
+            : $lastSummary->getTimestamp();
+        $operationsAfterSummary = $this->getAllUndeclinedOperationsAfter(
+            $accountId,
+            $currency,
+            $lastSummaryTimestamp
+        );
+        $operationsAfterSummary = array_filter(
             $operationsAfterSummary,
-            fn(
-                AmountInCurrencyValInterface $acc,
-                CurrencyOperationInAccountRequestRecInterface $el
-            ) => $acc->plus($el->getAmount()),
-            $lastSummaryAmount
+            fn(CurrencyOperationInAccountRequestRecInterface $op)
+                => (($op->isDeclined() === false)
+                    && !($op->getAmount()->isPositive() && !$op->isConfirmed()))
+        );
+        return $lastSummaryAmount->plus(
+            $this->calcOperationsSum($operationsAfterSummary, $currency)
         );
     }
 

@@ -2,6 +2,7 @@
 
 namespace Pantagruel74\MulticurtestPrivateOperationsServiceTest;
 
+use Pantagruel74\MulticurtestPrivateOperationsService\exceptions\NotEnouthMoneyException;
 use Pantagruel74\MulticurtestPrivateOperationsService\PrivateOperationsService;
 use Pantagruel74\MulticurtestPrivateOperationsServiceStubs\managers\BankAccountManagerStub;
 use Pantagruel74\MulticurtestPrivateOperationsServiceStubs\managers\CurrencyManagerStub;
@@ -401,6 +402,7 @@ class PrivateOperationsServiceTest extends TestCase
             $curManager,
             $operationManager
         );
+        $this->expectException(NotEnouthMoneyException::class);
         $service->cashAmount(
             BankAccountManagerStub::ACC_ID,
             new AmountInCurrencyValStub("EUR", 300),
@@ -410,12 +412,6 @@ class PrivateOperationsServiceTest extends TestCase
             "EUR"
         );
         $this->assertEquals(200, $result->getAmount());
-        $operations = $operationManager->getAllOperationsAfter(
-            BankAccountManagerStub::ACC_ID,
-            "EUR",
-            null
-        );
-        $this->assertCount(1, $operations);
     }
 
     public function testCashAmountInvalidAccId()
@@ -482,5 +478,51 @@ class PrivateOperationsServiceTest extends TestCase
             BankAccountManagerStub::ACC_ID,
             new AmountInCurrencyValStub("dasn", 300),
         );
+    }
+
+    public function testAmountConversionValid()
+    {
+        $initTimestamp = (new \DateTime())->getTimestamp();
+        $accManager = new BankAccountManagerStub();
+        $curManager = new CurrencyManagerStub();
+        $summmaryManager = new CurrencySummaryManagerStub([
+            new CurrencySummaryInAccountRecStub(
+                self::SUMMARY_EUR_ID,
+                "EUR",
+                new AmountInCurrencyValStub("EUR", 200),
+                $initTimestamp
+            ),
+            new CurrencySummaryInAccountRecStub(
+                self::SUMMARY_RUB_ID,
+                "RUB",
+                new AmountInCurrencyValStub("RUB", 2000),
+                $initTimestamp
+            ),
+        ]);
+        $operationManager = new CurrencyOperationManagerStub([
+            new CurrencyOperationInAccountRequestRecStub(
+                self::OPERATION_EUR_1_ID,
+                new AmountInCurrencyValStub("EUR", 300),
+                true,
+                false,
+                $initTimestamp + 1000,
+            ),
+        ]);
+        $service = new PrivateOperationsService(
+            $accManager,
+            $summmaryManager,
+            $curManager,
+            $operationManager
+        );
+        $service->convertAmountToOtherCurrency(
+            BankAccountManagerStub::ACC_ID,
+            new AmountInCurrencyValStub("EUR", 500),
+            "RUB"
+        );
+        $result = $service->getConfirmedBalanceInCurrencyAccount(
+            BankAccountManagerStub::ACC_ID,
+            "EUR"
+        );
+        $this->assertEquals(0, $result->getAmount());
     }
 }

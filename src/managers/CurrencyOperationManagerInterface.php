@@ -24,6 +24,16 @@ interface CurrencyOperationManagerInterface
         AmountInCurrencyValInterface $amount
     ): CurrencyOperationInAccountRequestRecInterface;
 
+    public function createWriteOffCaseConversion(
+        string $accId,
+        AmountInCurrencyValInterface $amount
+    ): CurrencyOperationInAccountRequestRecInterface;
+
+    public function createWriteInCaseConversion(
+        string $accId,
+        AmountInCurrencyValInterface $amount
+    ): CurrencyOperationInAccountRequestRecInterface;
+
     public function saveNewOperations(
         array $operations
     ): void;

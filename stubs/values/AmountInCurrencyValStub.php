@@ -58,4 +58,9 @@ class AmountInCurrencyValStub implements AmountInCurrencyValInterface
         /* @var self $anotherAmount */
         return new self($this->curId, $this->amount - $anotherAmount->amount);
     }
+
+    public function isZero(): bool
+    {
+        return $this->amount === 0;
+    }
 }

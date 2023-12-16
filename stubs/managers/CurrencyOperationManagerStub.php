@@ -116,4 +116,36 @@ class CurrencyOperationManagerStub implements CurrencyOperationManagerInterface
             $this->operations
         );
     }
+
+    public function createWriteOffCaseConversion(
+        string $accId,
+        AmountInCurrencyValInterface $amount
+    ): CurrencyOperationInAccountRequestRecInterface {
+        Assert::isAOf($amount, AmountInCurrencyValStub::class);
+        /* @var AmountInCurrencyValStub $amount */
+        Assert::true($amount->getAmount() > 0);
+        return new CurrencyOperationInAccountRequestRecStub(
+            Uuid::uuid4(),
+            $amount->reverse(),
+            false,
+            false,
+            (new \DateTime("now"))->getTimestamp()
+        );
+    }
+
+    public function createWriteInCaseConversion(
+        string $accId,
+        AmountInCurrencyValInterface $amount
+    ): CurrencyOperationInAccountRequestRecInterface {
+        Assert::isAOf($amount, AmountInCurrencyValStub::class);
+        /* @var AmountInCurrencyValStub $amount */
+        Assert::true($amount->getAmount() > 0);
+        return new CurrencyOperationInAccountRequestRecStub(
+            Uuid::uuid4(),
+            $amount,
+            false,
+            false,
+            (new \DateTime("now"))->getTimestamp()
+        );
+    }
 }
