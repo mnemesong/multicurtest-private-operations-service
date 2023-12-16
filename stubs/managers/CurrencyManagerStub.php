@@ -39,7 +39,7 @@ class CurrencyManagerStub implements  CurrencyManagerInterface
         if($amount->getCurId() === self::EUR) {
             Assert::eq($targetCurrency, self::RUB);
             return new AmountInCurrencyValStub(
-                self::EUR,
+                self::RUB,
                 $amount->getAmount() * 100
             );
         }

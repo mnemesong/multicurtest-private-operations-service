@@ -168,6 +168,8 @@ final class PrivateOperationsService
             $writeInOperation = $this->currencyOperationManager
                 ->createWriteInCaseConversion($accountId, $targetAmount);
             $this->currencyOperationManager
+                ->saveNewOperations([$writeInOperation]);
+            $this->currencyOperationManager
                 ->confirmOperations([
                     $writeOffOperation->getId(),
                     $writeInOperation->getId()

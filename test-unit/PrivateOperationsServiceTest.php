@@ -519,10 +519,61 @@ class PrivateOperationsServiceTest extends TestCase
             new AmountInCurrencyValStub("EUR", 500),
             "RUB"
         );
-        $result = $service->getConfirmedBalanceInCurrencyAccount(
+        $resultEur = $service->getConfirmedBalanceInCurrencyAccount(
             BankAccountManagerStub::ACC_ID,
             "EUR"
         );
-        $this->assertEquals(0, $result->getAmount());
+        $this->assertEquals(0, $resultEur->getAmount());
+        $resultRub = $service->getConfirmedBalanceInCurrencyAccount(
+            BankAccountManagerStub::ACC_ID,
+            "RUB"
+        );
+        $this->assertEquals(52000, $resultRub->getAmount());
+    }
+
+    public function testAmountConversionDeclined()
+    {
+        $initTimestamp = (new \DateTime())->getTimestamp();
+        $accManager = new BankAccountManagerStub();
+        $curManager = new CurrencyManagerStub();
+        $summmaryManager = new CurrencySummaryManagerStub([
+            new CurrencySummaryInAccountRecStub(
+                self::SUMMARY_EUR_ID,
+                "EUR",
+                new AmountInCurrencyValStub("EUR", 200),
+                $initTimestamp
+            ),
+            new CurrencySummaryInAccountRecStub(
+                self::SUMMARY_RUB_ID,
+                "RUB",
+                new AmountInCurrencyValStub("RUB", 2000),
+                $initTimestamp
+            ),
+        ]);
+        $operationManager = new CurrencyOperationManagerStub([
+        ]);
+        $service = new PrivateOperationsService(
+            $accManager,
+            $summmaryManager,
+            $curManager,
+            $operationManager
+        );
+        $this->expectException(NotEnouthMoneyException::class);
+        $service->convertAmountToOtherCurrency(
+            BankAccountManagerStub::ACC_ID,
+            new AmountInCurrencyValStub("EUR", 500),
+            "RUB"
+        );
+        $this->expectException(NotEnouthMoneyException::class);
+        $resultEur = $service->getConfirmedBalanceInCurrencyAccount(
+            BankAccountManagerStub::ACC_ID,
+            "EUR"
+        );
+        $this->assertEquals(200, $resultEur->getAmount());
+        $resultRub = $service->getConfirmedBalanceInCurrencyAccount(
+            BankAccountManagerStub::ACC_ID,
+            "RUB"
+        );
+        $this->assertEquals(200, $resultRub->getAmount());
     }
 }
