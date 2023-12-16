@@ -34,6 +34,11 @@ final class PrivateOperationsService
         string $accountId,
         string $currency
     ): AmountInCurrencyValInterface {...}
+    
+    public function getFrozenAccountBalance(
+        string $accountId,
+        string $currency
+    ): AmountInCurrencyValInterface {...}
 
     public function getConfirmedTotalBalanceInAccount(
         string $accountId

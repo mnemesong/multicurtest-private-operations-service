@@ -5,6 +5,7 @@ namespace Pantagruel74\MulticurtestPrivateOperationsServiceTest;
 use Pantagruel74\MulticurtestPrivateOperationsService\exceptions\NotEnouthMoneyException;
 use Pantagruel74\MulticurtestPrivateOperationsService\PrivateOperationsService;
 use Pantagruel74\MulticurtestPrivateOperationsServiceStubs\managers\BankAccountManagerStub;
+use Pantagruel74\MulticurtestPrivateOperationsServiceStubs\managers\BankAccountManagerWithFrozenCurrencyStub;
 use Pantagruel74\MulticurtestPrivateOperationsServiceStubs\managers\CurrencyManagerStub;
 use Pantagruel74\MulticurtestPrivateOperationsServiceStubs\managers\CurrencyOperationManagerStub;
 use Pantagruel74\MulticurtestPrivateOperationsServiceStubs\managers\CurrencySummaryManagerStub;
@@ -156,6 +157,93 @@ class PrivateOperationsServiceTest extends TestCase
             BankAccountManagerStub::ACC_ID,
             "ASJl"
         );
+    }
+
+    public function testGetFrozenBalanceInCurrencyWithSummaryValid()
+    {
+        $initTimestamp = (new \DateTime())->getTimestamp();
+        $accManager = new BankAccountManagerWithFrozenCurrencyStub();
+        $curManager = new CurrencyManagerStub();
+        $summmaryManager = new CurrencySummaryManagerStub([
+            new CurrencySummaryInAccountRecStub(
+                self::SUMMARY_EUR_ID,
+                "EUR",
+                new AmountInCurrencyValStub("EUR", 200),
+                $initTimestamp
+            ),
+            new CurrencySummaryInAccountRecStub(
+                self::SUMMARY_RUB_ID,
+                "RUB",
+                new AmountInCurrencyValStub("RUB", 2000),
+                $initTimestamp
+            ),
+        ]);
+        $operationManager = new CurrencyOperationManagerStub([
+            new CurrencyOperationInAccountRequestRecStub(
+                self::OPERATION_RUB_1_ID,
+                new AmountInCurrencyValStub("RUB", 1000),
+                true,
+                false,
+                $initTimestamp + 1000,
+            ),
+            //Declined
+            new CurrencyOperationInAccountRequestRecStub(
+                self::OPERATION_RUB_2_ID,
+                new AmountInCurrencyValStub("RUB", -1500),
+                false,
+                true,
+                $initTimestamp + 1000,
+            ),
+            //Out of last summary range
+            new CurrencyOperationInAccountRequestRecStub(
+                self::OPERATION_EUR_1_ID,
+                new AmountInCurrencyValStub("EUR", -1500),
+                false,
+                true,
+                $initTimestamp - 1000,
+            ),
+        ]);
+        $service = new PrivateOperationsService(
+            $accManager,
+            $summmaryManager,
+            $curManager,
+            $operationManager
+        );
+        $result1 = $service->getFrozenAccountBalance(
+            BankAccountManagerStub::ACC_ID,
+            "EUR"
+        );
+        $this->assertEquals(200, $result1->getAmount());
+        $this->assertEquals("EUR", $result1->getCurId());
+    }
+
+    public function testGetFrozenBalanceInCurrencyWithSummaryInvalidCurrency()
+    {
+        $initTimestamp = (new \DateTime())->getTimestamp();
+        $accManager = new BankAccountManagerWithFrozenCurrencyStub();
+        $curManager = new CurrencyManagerStub();
+        $summmaryManager = new CurrencySummaryManagerStub([
+            new CurrencySummaryInAccountRecStub(
+                self::SUMMARY_RUB_ID,
+                "RUB",
+                new AmountInCurrencyValStub("RUB", 2000),
+                $initTimestamp
+            ),
+        ]);
+        $operationManager = new CurrencyOperationManagerStub([
+        ]);
+        $service = new PrivateOperationsService(
+            $accManager,
+            $summmaryManager,
+            $curManager,
+            $operationManager
+        );
+        $this->expectException(\InvalidArgumentException::class);
+        $result1 = $service->getFrozenAccountBalance(
+            BankAccountManagerStub::ACC_ID,
+            "RUB"
+        );
+
     }
 
     public function testGetConfirmedTotalBalanceValid()

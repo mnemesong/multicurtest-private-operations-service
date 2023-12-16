@@ -49,6 +49,17 @@ final class PrivateOperationsService
         return $this->calcConfirmedAmountInCurrency($accountId, $currency);
     }
 
+    public function getFrozenAccountBalance(
+        string $accountId,
+        string $currency
+    ): AmountInCurrencyValInterface {
+        $account = $this->bankAccountManager->getAccount($accountId);
+        $currencyExists = in_array($currency, $account->getCurrencies());
+        Assert::false($currencyExists, "Currency " . $currency
+            . " are not frozen in account " . $accountId);
+        return $this->calcConfirmedAmountInCurrency($accountId, $currency);
+    }
+
     public function getConfirmedTotalBalanceInAccount(
         string $accountId
     ): AmountInCurrencyValInterface {
